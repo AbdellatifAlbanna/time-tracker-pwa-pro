@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Time Tracker</title>
+
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#1e3a8a" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar__left">
+      <div class="brand">
+        <div class="brand__mark">⏱</div>
+        <div class="brand__text">
+          <div class="brand__title">Time Tracker</div>
+          <div class="brand__subtitle">Personal work log • 8.5h standard</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="topbar__right">
+      <button class="btn btn--ghost" id="installBtn" title="Install as app" style="display:none;">Install</button>
+      <button class="btn btn--ghost" id="notifyBtn" title="Enable notifications">Notifications</button>
+      <button class="btn btn--ghost" id="settingsBtn" title="Settings">Settings</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="grid grid--2">
+      <div class="card">
+        <div class="card__header">
+          <h2 class="card__title">Dashboard</h2>
+          <span class="pill" id="statusPill">Loading…</span>
+        </div>
+
+        <div class="status" id="statusBox">
+          <div class="status__icon" id="statusIcon">⏳</div>
+          <div class="status__text">
+            <div class="status__headline" id="statusHeadline">Loading…</div>
+            <div class="status__sub" id="statusSub">—</div>
+          </div>
+        </div>
+
+        <div class="btnrow">
+          <button class="btn btn--green" id="clockInBtn">Clock In</button>
+          <button class="btn btn--red" id="clockOutBtn">Clock Out</button>
+          <button class="btn btn--blue" id="manualBtn">Add / Fix Shift</button>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="summary">
+          <div class="summary__item">
+            <div class="summary__label">This month</div>
+            <div class="summary__value" id="monthHours">0.00h</div>
+            <div class="summary__hint">Total hours</div>
+          </div>
+          <div class="summary__item">
+            <div class="summary__label">Overtime</div>
+            <div class="summary__value" id="monthOT">0.00h</div>
+            <div class="summary__hint">> 8.5h/day</div>
+          </div>
+          <div class="summary__item">
+            <div class="summary__label">Days logged</div>
+            <div class="summary__value" id="monthDays">0</div>
+            <div class="summary__hint">Shifts</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card__header">
+          <h2 class="card__title">Backup & Export</h2>
+          <span class="pill pill--muted">iCloud ready</span>
+        </div>
+
+        <div class="actions">
+          <button class="btn btn--dark" id="backupBtn">⬇ Backup JSON</button>
+
+          <input type="file" id="restoreInput" accept="application/json" hidden />
+          <button class="btn btn--dark" id="restoreBtn">⬆ Restore JSON</button>
+
+          <button class="btn btn--dark" id="exportCsvBtn">📄 Export CSV</button>
+          <button class="btn btn--ghost-danger" id="wipeBtn" title="Deletes all logs">Reset Data</button>
+        </div>
+
+        <div class="note">
+          <div class="note__title">How to sync with iPhone (iCloud)</div>
+          <ol class="note__list">
+            <li>Tap <b>Backup JSON</b> → save file to <b>iCloud Drive</b>.</li>
+            <li>On another device, open the app → <b>Restore JSON</b> and pick the same file.</li>
+            <li>You can also export <b>CSV</b> for payroll.</li>
+          </ol>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="tiny" id="pwaHint">
+          Tip: On iPhone Safari → Share → <b>Add to Home Screen</b> to install as an app.
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card__header card__header--stack">
+        <div class="headerline">
+          <h2 class="card__title">Work Logs</h2>
+
+          <div class="filters">
+            <label class="field field--inline">
+              <span class="field__label">Month</span>
+              <input type="month" id="monthPicker" class="input" />
+            </label>
+
+            <label class="field field--inline">
+              <span class="field__label">Search</span>
+              <input type="text" id="searchInput" class="input" placeholder="date or note…" />
+            </label>
+          </div>
+        </div>
+
+        <div class="subline">
+          <div class="tiny" id="tableHint">Click a row to edit. Overtime is calculated automatically.</div>
+          <div class="tiny tiny--right" id="openWarning" style="display:none;"></div>
+        </div>
+      </div>
+
+      <div class="tablewrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Time In</th>
+              <th>Time Out</th>
+              <th>Total</th>
+              <th>Overtime</th>
+              <th>Notes</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="logTable"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- MODAL: Add / Edit shift -->
+  <div class="modal" id="shiftModal" aria-hidden="true">
+    <div class="modal__backdrop" data-close="1"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal__header">
+        <h3 class="modal__title" id="modalTitle">Add / Fix Shift</h3>
+        <button class="iconbtn" data-close="1" aria-label="Close">✕</button>
+      </div>
+
+      <div class="modal__body">
+        <div class="grid grid--2 grid--gap">
+          <label class="field">
+            <span class="field__label">Work date</span>
+            <input class="input" type="date" id="mDate" />
+            <span class="field__hint">This is the day you clocked in.</span>
+          </label>
+
+          <label class="field">
+            <span class="field__label">Notes</span>
+            <input class="input" type="text" id="mNotes" placeholder="e.g., Forgot to punch" />
+          </label>
+
+          <label class="field">
+            <span class="field__label">Time In</span>
+            <input class="input" type="datetime-local" id="mIn" />
+            <span class="field__hint">Can be any time on the work date.</span>
+          </label>
+
+          <label class="field">
+            <span class="field__label">Time Out</span>
+            <input class="input" type="datetime-local" id="mOut" />
+            <span class="field__hint">Can be after midnight (next day).</span>
+          </label>
+        </div>
+
+        <div class="inlineWarn" id="mWarn" style="display:none;"></div>
+      </div>
+
+      <div class="modal__footer">
+        <button class="btn btn--ghost" id="mCancel" data-close="1">Cancel</button>
+        <button class="btn btn--ghost-danger" id="mDelete" style="display:none;">Delete</button>
+        <button class="btn btn--blue" id="mSave">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Settings -->
+  <div class="modal" id="settingsModal" aria-hidden="true">
+    <div class="modal__backdrop" data-close="1"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="modal__header">
+        <h3 class="modal__title" id="settingsTitle">Settings</h3>
+        <button class="iconbtn" data-close="1" aria-label="Close">✕</button>
+      </div>
+
+      <div class="modal__body">
+        <div class="grid grid--2 grid--gap">
+          <label class="field">
+            <span class="field__label">Standard day (hours)</span>
+            <input class="input" type="number" id="sStandard" step="0.1" min="0" disabled />
+            <span class="field__hint">Fixed to 8.5 hours.</span>
+          </label>
+
+          <label class="field">
+            <span class="field__label">Timezone</span>
+            <input class="input" type="text" value="Asia/Amman" disabled />
+            <span class="field__hint">Uses device local time.</span>
+          </label>
+
+          <label class="field">
+            <span class="field__label">No clock-in reminder time</span>
+            <input class="input" type="time" id="sNoInTime" />
+            <span class="field__hint">Every day, if you haven't clocked in.</span>
+          </label>
+
+          <label class="field">
+            <span class="field__label">Clocked-in too long (hours)</span>
+            <input class="input" type="number" id="sTooLongHours" step="0.5" min="1" />
+            <span class="field__hint">Notify if still clocked in past this.</span>
+          </label>
+
+          <label class="field">
+            <span class="field__label">Reminder interval (minutes)</span>
+            <input class="input" type="number" id="sIntervalMin" step="1" min="1" />
+            <span class="field__hint">How often the app checks reminders.</span>
+          </label>
+
+          <label class="field">
+            <span class="field__label">Auto backup reminder (days)</span>
+            <input class="input" type="number" id="sBackupDays" step="1" min="0" />
+            <span class="field__hint">0 = disabled.</span>
+          </label>
+        </div>
+
+        <div class="inlineInfo">
+          Notifications work best when the app is open or installed. iPhone may limit background notifications.
+        </div>
+      </div>
+
+      <div class="modal__footer">
+        <button class="btn btn--ghost" data-close="1">Close</button>
+        <button class="btn btn--blue" id="saveSettingsBtn">Save settings</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
